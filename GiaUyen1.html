@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#050008">
+<title>Món Quà 20/10 Dành Tặng Em ♥</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #050008; color: #fff;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 48%, rgba(110, 0, 38, .4), transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(50, 0, 70, .25), transparent 60%),
+      #050008;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #bg { z-index: 0; }
+  #heart { z-index: 1; }
+
+  /* Màn hình mở đầu (Intro Screen) giúp kích hoạt nhạc và trải nghiệm */
+  #intro-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 0, 8, 0.95);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: opacity 1.2s ease, visibility 1.2s ease;
+    cursor: pointer;
+  }
+  #intro-screen.fade-out {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .intro-card {
+    text-align: center;
+    padding: 40px;
+    background: rgba(30, 8, 18, 0.6);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 77, 148, 0.3);
+    border-radius: 24px;
+    box-shadow: 0 0 50px rgba(255, 20, 80, 0.3);
+    max-width: 420px;
+    width: 90%;
+  }
+  .intro-card h2 {
+    color: #ff80bf;
+    font-size: 24px;
+    margin-bottom: 12px;
+    font-weight: 500;
+    text-shadow: 0 0 15px rgba(255, 128, 191, 0.6);
+  }
+  .intro-card p {
+    color: #f2f2f2;
+    font-size: 15px;
+    margin-bottom: 25px;
+    line-height: 1.5;
+  }
+  .open-btn {
+    background: linear-gradient(135deg, #ff1a53, #ff4d94);
+    color: white;
+    border: none;
+    padding: 14px 32px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 0 25px rgba(255, 26, 83, 0.8);
+    transition: 0.3s;
+    animation: pulseBtn 1.8s infinite;
+  }
+  .open-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 40px rgba(255, 77, 148, 1);
+  }
+  @keyframes pulseBtn {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+  }
+
+  /* Khung lời chúc xuất hiện sau 8 giây */
+  .wish-message {
+    position: fixed;
+    z-index: 10;
+    left: 50%;
+    bottom: 8%;
+    transform: translateX(-50%) translateY(25px);
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+    color: rgba(255, 215, 230, .98);
+    font-size: clamp(14px, 2.2vw, 17px);
+    line-height: 1.65;
+    letter-spacing: .06em;
+    text-shadow: 0 0 20px rgba(255, 30, 80, 0.9);
+    background: rgba(22, 4, 11, 0.82);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 90, 160, 0.45);
+    padding: 22px 28px;
+    border-radius: 20px;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 1.8s cubic-bezier(0.4, 0, 0.2, 1), transform 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+  .wish-message.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+  }
+  .wish-message span {
+    color: #ff2858;
+    font-size: 19px;
+  }
+
+  @media (max-width: 480px) { 
+    .wish-message { bottom: 5%; padding: 16px 20px; } 
+  }
+</style>
+</head>
+<body>
+
+<!-- Màn hình mở đầu -->
+<div id="intro-screen">
+  <div class="intro-card">
+    <h2>Gửi Tặng Công Chúa ❤️</h2>
+    <p>Chạm để mở món quà đặc biệt dành riêng cho em nhân ngày 20/10 nhé...</p>
+    <button class="open-btn" onclick="startExperience()">Mở Hộp Quà ✨</button>
+  </div>
+</div>
+
+<canvas id="bg"></canvas>
+<canvas id="heart"></canvas>
+
+<!-- Lời chúc xuất hiện sau 8 giây -->
+<div id="wishMessage" class="wish-message">
+  <span>♥</span> Chúc tình yêu của anh một ngày 20/10 ngập tràn hạnh phúc, luôn rạng rỡ, xinh đẹp và mãi là đóa hoa tuyệt đẹp trong tim anh. Yêu em thật nhiều! <span>♥</span>
+</div>
+
+<!-- Audio nhạc nền (Đặt file nhạc your-song.mp3 cùng thư mục) -->
+<audio id="bg-music" loop src="your-song.mp3"></audio>
+
+<script>
+(() => {
+  const bg = document.getElementById("bg");
+  const bctx = bg.getContext("2d");
+  const canvas = document.getElementById("heart");
+  const ctx = canvas.getContext("2d");
+  let w = innerWidth, h = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+  let particles = [], floaties = [];
+  const rand = (a,b) => a + Math.random() * (b-a);
+  const TAU = Math.PI * 2;
+
+  function fitCanvas(c, cctx) {
+    c.width = Math.round(w*dpr);
+    c.height = Math.round(h*dpr);
+    c.style.width = w + "px";
+    c.style.height = h + "px";
+    cctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  // Hình dáng trái tim tròn trịa, đầy đặn, vô cùng cân đối
+  function heartXY(t, scale) {
+    return {
+      x: 16 * Math.pow(Math.sin(t), 3) * scale,
+      y: -(13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t)) * scale * 0.93
+    };
+  }
+
+  function makeHeart() {
+    particles = [];
+    const scale = Math.min(w * 0.0178, h * 0.0134, 8.6);
+    const count = Math.min(2800, Math.max(1600, Math.round(w*h/300)));
+    for (let i=0; i<count; i++) {
+      const t = Math.random()*TAU;
+      const edge = heartXY(t, 1);
+      const r = Math.pow(Math.random(), .55);
+      const shell = Math.random() < .32;
+      const fill = shell ? rand(.91, 1.015) : r*.94;
+      const x = edge.x*fill;
+      const y = edge.y*fill;
+      const z = shell ? rand(-7,7) : rand(-18,18) * Math.sqrt(1-r*r);
+      particles.push({
+        x,y,z,
+        size: shell ? rand(1.1,2.2) : rand(.7,1.6),
+        phase: rand(0,TAU),
+        red: Math.random(),
+        twinkle: rand(.6,1.3)
+      });
+    }
+  }
+
+  function makeFloaties() {
+    floaties = [];
+    // Mật độ nền cực kỳ lung linh với nhiều trái tim và sao
+    const count = Math.min(250, Math.max(100, Math.round(w*h/6000)));
+    for (let i=0; i<count; i++) {
+      floaties.push({
+        x: rand(0,w), y: rand(0,h), z: rand(.3,1.4),
+        size: rand(6,22), speed: rand(12,38),
+        drift: rand(-20,20), phase: rand(0,TAU),
+        type: Math.random() < .62 ? "heart" : "star",
+        alpha: rand(.45,.98), rot: rand(0,TAU),
+        rotSpeed: rand(-.9,.9)
+      });
+    }
+  }
+
+  function resize() {
+    w = innerWidth; h = innerHeight; dpr = Math.min(devicePixelRatio || 1, 2);
+    fitCanvas(bg,bctx); fitCanvas(canvas,ctx);
+    makeHeart(); makeFloaties();
+  }
+
+  function drawHeartShape(c, x, y, size, rotation) {
+    c.save();
+    c.translate(x,y);
+    c.rotate(rotation);
+    c.scale(size/18, size/18);
+    c.beginPath();
+    c.moveTo(0, 5);
+    c.bezierCurveTo(-18,-7,-12,-19,0,-10);
+    c.bezierCurveTo(12,-19,18,-7,0,5);
+    c.closePath();
+    c.fill();
+    c.restore();
+  }
+
+  function drawStar(c, x, y, outer, rotation) {
+    c.save();
+    c.translate(x,y); c.rotate(rotation);
+    c.beginPath();
+    for (let i=0; i<10; i++) {
+      const r = i%2===0 ? outer : outer*.43;
+      const a = -Math.PI/2 + i*Math.PI/5;
+      const px = Math.cos(a)*r, py = Math.sin(a)*r;
+      if (i===0) c.moveTo(px,py); else c.lineTo(px,py);
+    }
+    c.closePath(); c.fill(); c.restore();
+  }
+
+  function drawBackground(now, dt) {
+    bctx.clearRect(0,0,w,h);
+    const halo = bctx.createRadialGradient(w/2,h*.46,0,w/2,h*.46,Math.min(w,h)*.55);
+    halo.addColorStop(0,"rgba(140,0,45,.25)");
+    halo.addColorStop(.5,"rgba(55,0,40,.12)");
+    halo.addColorStop(1,"rgba(0,0,0,0)");
+    bctx.fillStyle = halo; bctx.fillRect(0,0,w,h);
+
+    for (const f of floaties) {
+      f.y -= f.speed * dt * f.z;
+      f.x += Math.sin(now*.00045 + f.phase)*f.drift*dt;
+      f.rot += f.rotSpeed*dt;
+      if (f.y < -40) { f.y = h+35; f.x = rand(0,w); }
+      if (f.x < -30) f.x = w+25;
+      if (f.x > w+30) f.x = -25;
+
+      const tw = .5 + .5*Math.sin(now*.0035 + f.phase);
+      bctx.save();
+      bctx.globalAlpha = f.alpha * tw;
+      bctx.shadowBlur = f.type === "heart" ? 18 : 15;
+      bctx.shadowColor = f.type === "heart" ? "#ff1748" : "#ffea88";
+      bctx.fillStyle = f.type === "heart" ? "#ff315e" : "#ffea88";
+      if (f.type === "heart") drawHeartShape(bctx,f.x,f.y,f.size*f.z,f.rot);
+      else drawStar(bctx,f.x,f.y,f.size*.48*f.z,f.rot);
+      bctx.restore();
+    }
+  }
+
+  function drawHeart(now) {
+    ctx.clearRect(0,0,w,h);
+    const cx = w/2, cy = h*.455;
+    const beat = 1 + .038*Math.sin(now*.0022);
+    const rotY = Math.sin(now*.00048)*.28;
+    const rotX = Math.sin(now*.00037)*.095;
+    const perspective = Math.min(w,h)*.72;
+    const scale = Math.min(w*.0178,h*.0134,8.6);
+    const halo = ctx.createRadialGradient(cx,cy,3,cx,cy,Math.min(w,h)*.38);
+    halo.addColorStop(0,"rgba(255,0,60,.18)");
+    halo.addColorStop(.45,"rgba(190,0,50,.08)");
+    halo.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle = halo; ctx.fillRect(0,0,w,h);
+
+    const sorted = particles.slice().sort((a,b)=>a.z-b.z);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const p of sorted) {
+      const x0 = p.x*scale*beat;
+      const y0 = p.y*scale*beat;
+      const z0 = p.z*scale;
+      const xr = x0*Math.cos(rotY) + z0*Math.sin(rotY);
+      const zr = -x0*Math.sin(rotY) + z0*Math.cos(rotY);
+      const yr = y0*Math.cos(rotX) - zr*Math.sin(rotX);
+      const zFinal = y0*Math.sin(rotX) + zr*Math.cos(rotX);
+      const depth = perspective/(perspective+zFinal+100);
+      const x = cx + xr*depth;
+      const y = cy + yr*depth;
+      const twinkle = .65 + .35*Math.sin(now*.0032+p.phase);
+      const front = Math.max(.4, Math.min(1.45, 1-zFinal/420));
+      const radius = p.size*front*depth;
+      const alpha = Math.min(1,twinkle*p.twinkle*(.75+front*.2));
+
+      const g = Math.floor(8 + p.red*45 + twinkle*18);
+      const b = Math.floor(25 + p.red*45);
+      ctx.fillStyle = `rgba(255,${g},${b},${alpha})`;
+      ctx.shadowColor = p.red > .82 ? "#ff7897" : "#ff123f";
+      ctx.shadowBlur = p.red > .82 ? 16 : 9;
+      ctx.beginPath();
+      ctx.arc(x,y,Math.max(.35,radius),0,TAU);
+      ctx.fill();
+
+      if (p.red > .94 && radius > 1.05 && twinkle > .87) {
+        ctx.strokeStyle = `rgba(255,190,205,${alpha*.75})`;
+        ctx.lineWidth = .7;
+        ctx.beginPath();
+        ctx.moveTo(x-radius*2.2,y); ctx.lineTo(x+radius*2.2,y);
+        ctx.moveTo(x,y-radius*2.2); ctx.lineTo(x,y+radius*2.2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  let previous = performance.now();
+  let animationStarted = false;
+
+  function animate(now) {
+    const dt = Math.min((now-previous)/1000,.04);
+    previous = now;
+    drawBackground(now,dt);
+    if (animationStarted) {
+      drawHeart(now);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  addEventListener("resize",resize);
+  resize();
+  requestAnimationFrame(animate);
+
+  // Hàm kích hoạt khi bấm nút "Mở Hộp Quà"
+  window.startExperience = function() {
+    const intro = document.getElementById("intro-screen");
+    intro.classList.add("fade-out");
+
+    // Phát nhạc nền
+    const music = document.getElementById("bg-music");
+    if (music) {
+      music.play().catch(e => console.log("Cần tương tác để phát nhạc"));
+    }
+
+    // Bắt đầu hiển thị trái tim 3D
+    animationStarted = true;
+
+    // Đếm ngược chính xác 8 giây sau khi mở để hiện bảng lời chúc
+    setTimeout(() => {
+      const wishMsg = document.getElementById("wishMessage");
+      if (wishMsg) {
+        wishMsg.classList.add("show");
+      }
+    }, 8000);
+  };
+})();
+</script>
+</body>
+</html>
